@@ -1,0 +1,218 @@
+---
+title: "Memory Facial Threat"
+author: "Graham Albert"
+date: "June 9, 2019"
+output: html_document
+---
+
+
+###To load required packarges
+```{r}
+require(curl) 
+```
+######loading data
+#####for more advanced rotation.
+```{r}
+require(dplyr)
+```
+####for data manipulation.
+```{r}
+require(yaml)
+require(stringi)
+```
+####for correlation plot depiction.
+```{r}
+require(gplots)
+require(ggplot2)
+require(gridExtra)
+require(moments)
+```
+
+###To load in the packages for conducting the mixed effects models.
+```{r}
+require(lme4)
+require(AICcmodavg)
+require(MuMIn)
+require(r2glmm)
+```
+#### More packages for conducting mixed effects models
+```{r}
+require(RColorBrewer) # needed for some extra colours in one of the graphs
+require(lmerTest)# to get p-value estimations that are not part of the standard lme4 packages
+```
+
+
+####To load my data set for the mating motivation scale into the  R work space.
+```{r}
+f <- curl("https://raw.githubusercontent.com/GrahamAlbert/Voice_Health_Revised/master/Study_1_Dominance_Rating_Long_MLM.csv")
+VHS1DR<- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(VHS1DR)
+```
+
+####To determine variable names of the data set.
+```{r}
+names(VHS1DR)[1]<-"ID"
+names(VHS1DR)
+
+```
+
+####Lets obtain some summary statistics.
+```{r}
+summary(VHS1DR)
+dim(VHS1DR)
+View(VHS1DR)
+```
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis will be  health status (health/unhealthy)
+
+```{r}
+require(dplyr)
+VHS1DR_factored = mutate(VHS1DR,ID = as.factor(VHS1DR$ID), Health_Status = as.factor(VHS1DR$Health_Status), SPEAKER_ID = as.factor(VHS1DR$SPEAKER_ID))
+View(VHS1DR_factored)
+```
+
+####Lets determine if we effectively factors the variables of interested.
+###We will determine the number of levels for each factor.
+```{r}
+nlevels(VHS1DR_factored$ID)
+nlevels(VHS1DR_factored$Health_Status)
+nlevels(VHS1DR_factored$SPEAKER_ID)
+```
+
+####Lets look at the distribution of our dependents variables by plotting histrograms
+```{r}
+require(psych)
+hist(VHS1DR_factored$Physical_Domaince)
+hist(VHS1DR_factored$Social_Dmanice)
+describe(VHS1DR_factored[c(4:5)])
+```
+
+
+####To factor health status.
+```{R}
+VHS1DR_factored$Health_Status = factor(VHS1DR_factored$Health_Status,
+                             levels = c(0,1),
+                             labels = c("Unhealthy", "Healthy"))
+table(VHS1DR_factored$Health_Status)
+```
+
+
+####Lets save this data.
+```{r}
+VHS1DR_Master= VHS1DR_factored
+summary(VHS1DR_Master)
+```
+
+
+
+####Lets open LME4.
+####The dependent variable is physical dominance ratings
+
+####Lets enter the random effects of participant ID and speaker ID as well as the fixed effect 
+#####Lets add the fixed effects of health statue (healthy/unhealthy).
+```{r}
+require(lme4)
+PDRMODEL <- lmer(Physical_Domaince ~ Health_Status+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS1DR_Master)
+summary(PDRMODEL)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(PDRMODEL)
+```
+####Let's check our multiple regression assumption set for model 10.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(PDRMODEL), resid(PDRMODEL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(PDRMODEL)) 
+qqline(resid(PDRMODEL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+confint(PDRMODEL)
+```
+
+
+###To generate confidence interval
+```{r}
+fixef(PDRMODEL)
+```
+
+
+####Let's generate the AIC for the  models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(PDRMODEL), c("PDRMODEL"), LL = FALSE))
+```
+
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(PDRMODEL)
+```
+
+
+
+
+
+####Lets open LME4.
+####The dependent variable is social dominance ratings
+
+####Lets enter the random effects of participant ID and speaker ID as well as the fixed effect 
+#####Lets add the fixed effects of health statue (healthy/unhealthy).
+
+
+#Now lets add the categorical fixed of health status (healthy/unhealth).
+```{r}
+require(lme4)
+SDRMODEL <- lmer(Social_Dmanice ~ Health_Status+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS1DR_Master)
+summary(SDRMODEL)
+```
+
+
+###To generate the fixed effects table for the model .
+```{r}
+confint(SDRMODEL)
+```
+
+
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(SDRMODEL)
+```
+
+
+
+####Let's generate the AIC for the  models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(SDRMODEL), c("SDRMODEL"), LL = FALSE))
+```
+
+
+####Let's check our multiple regression assumption set for model 10.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(SDRMODEL), resid(SDRMODEL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(SDRMODEL)) 
+qqline(resid(SDRMODEL), col = "red")
+
+```

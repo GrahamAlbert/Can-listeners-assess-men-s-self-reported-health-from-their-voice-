@@ -1,0 +1,313 @@
+---
+title: "Memory Facial Threat"
+author: "Graham Albert"
+date: "June 9, 2019"
+output: html_document
+---
+
+
+###To load required packarges
+```{r}
+require(curl) 
+```
+######loading data
+#####for more advanced rotation.
+```{r}
+require(dplyr)
+```
+####for data manipulation.
+```{r}
+require(yaml)
+require(stringi)
+```
+####for correlation plot depiction.
+```{r}
+require(gplots)
+require(ggplot2)
+require(gridExtra)
+require(moments)
+```
+
+###To load in the packages for conducting the mixed effects models.
+```{r}
+require(lme4)
+require(AICcmodavg)
+require(MuMIn)
+require(r2glmm)
+```
+###To load in the packages for conducting the mixed effects models.
+```{r}
+require(RColorBrewer) # needed for some extra colours in one of the graphs
+require(lmerTest)# to get p-value estimations that are not part of the standard lme4 packages
+```
+
+
+####To load my data set for the mating motivation scale into the  R work space.
+```{r}
+f <- curl("https://raw.githubusercontent.com/GrahamAlbert/Voice_Health_Revised/master/Study_1_Health_Based_Ratings_Long_MLM.csv")
+VHS1HR<- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(VHS1HR)
+```
+
+####To determine variable names of the data set.
+```{r}
+names(VHS1HR)[1]<-"ID"
+names(VHS1HR)
+
+```
+
+####Lets obtain some summary statistics.
+```{r}
+summary(VHS1HR)
+dim(VHS1HR)
+View(VHS1HR)
+```
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####These are: ID, participant sex, and speaker ID.
+####The fixed effects in this analysis will be  health status.
+```{r}
+require(dplyr)
+VHS1HR_factored = mutate(VHS1HR,ID = as.factor(VHS1HR$ID), Health_Status = as.factor(VHS1HR$Health_Status), SPEAKER_ID = as.factor(VHS1HR$SPEAKER_ID))
+View(VHS1HR_factored)
+```
+
+####Lets determine if we effectively factors the variables of interested.
+###We will determine the number of levels for each factor.
+```{r}
+nlevels(VHS1HR_factored$ID)
+nlevels(VHS1HR_factored$Health_Status)
+nlevels(VHS1HR_factored$SPEAKER_ID)
+```
+
+
+
+####To recode recall and encoding so that the reference category changes.
+```{R}
+VHS1HR_factored$Health_Status = factor(VHS1HR_factored$Health_Status,
+                             levels = c(0,1),
+                             labels = c("Unhealthy", "Healthy"))
+table(VHS1HR_factored$Health_Status)
+```
+
+####Lets save this data.
+```{r}
+VHS1HR_MASTER= VHS1HR_factored
+summary(VHS1HR_MASTER)
+write.csv(VHS1HR_MASTER,"C:\\Users\\graha\\Documents\\Github\\Voice_Health_Revised\\VHS1HR_MASTER", row.names = FALSE)
+```
+
+
+
+
+
+####The dependent variable is listener's health ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis will be  health status (health/unhealthy)
+
+
+
+#####Lets open LME4.
+```{r}
+require(lme4)
+HEALTLHRATINGMODEL <- lmer(Health_Rating ~ Health_Status+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS1HR_MASTER)
+summary(HEALTLHRATINGMODEL)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(HEALTLHRATINGMODEL)
+```
+####Let's check our multiple regression assumption set for model 10.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(HEALTLHRATINGMODEL), resid(HEALTLHRATINGMODEL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(HEALTLHRATINGMODEL)) 
+qqline(resid(HEALTLHRATINGMODEL), col = "red")
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(HEALTLHRATINGMODEL)
+```
+####To conmpute confidence intervals for the estimate.
+```{r}
+confint(HEALTLHRATINGMODEL)
+```
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(HEALTLHRATINGMODEL), c("HEALTLHRATINGMODEL"), LL = FALSE))
+```
+
+####The dependent variable is listener's disease likelihood ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis will be  health status (health/unhealthy)
+
+
+#Now lets add the categorical fixed of health status (healthy/unhealth).
+```{r}
+require(lme4)
+DISEASELIKELIHOODMODEL <- lmer(Disease_Likelihood_Rating ~ Health_Status+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS1HR_MASTER)
+summary(DISEASELIKELIHOODMODEL)
+```
+
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(DISEASELIKELIHOODMODEL)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(DISEASELIKELIHOODMODEL), resid(DISEASELIKELIHOODMODEL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(DISEASELIKELIHOODMODEL)) 
+qqline(resid(DISEASELIKELIHOODMODEL), col = "red")
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(DISEASELIKELIHOODMODEL)
+```
+
+
+
+####Let's generate the AIC for the  model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(DISEASELIKELIHOODMODEL), c("DISEASELIKELIHOODMODEL"), LL = FALSE))
+```
+
+
+####To conmpute confidence intervals for the estimate.
+```{r}
+confint(DISEASELIKELIHOODMODEL)
+```
+
+
+####The dependent variable is listener's illness frequency.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis will be  health status (health/unhealthy)
+
+
+```{r}
+require(lme4)
+ILLNESSFREQUENCYMODEL<- lmer(Illness_Frequency_Rating ~ Health_Status+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS1HR_MASTER)
+summary(ILLNESSFREQUENCYMODEL)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(ILLNESSFREQUENCYMODEL)
+```
+####Let's check our multiple regression assumption  for the model.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(ILLNESSFREQUENCYMODEL), resid(ILLNESSFREQUENCYMODEL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residual. 
+```{r}
+qqnorm(resid(ILLNESSFREQUENCYMODEL)) 
+qqline(resid(ILLNESSFREQUENCYMODEL), col = "red")
+
+```
+
+###To generate the fixed effects table for the model .
+```{r}
+fixef(ILLNESSFREQUENCYMODEL)
+```
+
+
+
+####Let's generate the AIC for the model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(ILLNESSFREQUENCYMODEL), c("ILLNESSFREQUENCYMODEL"), LL = FALSE))
+```
+
+###To generate the confidence intervals for the model.
+```{r}
+confint(ILLNESSFREQUENCYMODEL)
+```
+
+
+
+
+####The dependent variable is listener's symptom severity ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis will be  health status (health/unhealthy)
+
+```{r}
+require(lme4)
+SYMSEVMODEL<- lmer(Symptom_Severity_Ratings ~ Health_Status+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS1HR_MASTER)
+summary(SYMSEVMODEL)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(SYMSEVMODEL)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(SYMSEVMODEL), resid(SYMSEVMODEL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(SYMSEVMODEL)) 
+qqline(resid(SYMSEVMODEL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(SYMSEVMODEL)
+```
+
+
+
+####Let's generate the AIC for the model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(SYMSEVMODEL), c("SYMSEVMODEL"), LL = FALSE))
+```
+
+
+
+
+###To generate the confidence interval for the modefl
+```{r}
+confint(SYMSEVMODEL)
+```

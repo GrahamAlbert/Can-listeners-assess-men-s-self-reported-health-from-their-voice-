@@ -1,0 +1,207 @@
+---
+title: "Study 1 Women's Attractiveness Ratings"
+author: "Graham Albert"
+date: "June 9, 2019"
+output: html_document
+---
+
+
+###To load required packarges
+```{r}
+require(curl) 
+```
+######loading data
+#####for more advanced rotation.
+```{r}
+require(dplyr)
+```
+####for data manipulation.
+```{r}
+require(yaml)
+require(stringi)
+```
+####for correlation plot depiction.
+```{r}
+require(gplots)
+require(ggplot2)
+require(gridExtra)
+require(moments)
+```
+
+###To load packaged for the mixed effects regressions.
+```{r}
+require(lme4)
+require(AICcmodavg)
+require(MuMIn)
+require(r2glmm)
+```
+####More packages for the mixed effects regressions.
+```{r}
+require(RColorBrewer) # needed for some extra colours in one of the graphs
+require(lmerTest)# to get p-value estimations that are not part of the standard lme4 packages
+```
+
+
+####To load my data set for the mating motivation scale into the  R work space.
+```{r}
+f <- curl("https://raw.githubusercontent.com/GrahamAlbert/Voice_Health_Revised/master/Study_1_Attractiveness_Based_Ratings_Long_MLM.csv")
+VHS1AR<- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(VHS1AR)
+```
+
+####To determine variable names of the data set.
+```{r}
+names(VHS1AR)[1]<-"ID"
+names(VHS1AR)
+
+```
+
+####Lets obtain some summary statistics.
+```{r}
+summary(VHS1AR)
+dim(VHS1AR)
+View(VHS1AR)
+```
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects are liststner ID and speaker ID.
+####The fixed effects in this analysis will be  health status.
+```{r}
+require(dplyr)
+VHS1AR_factored = mutate(VHS1AR,ID = as.factor(VHS1AR$ID), Health_Status = as.factor(VHS1AR$Health_Status), SPEAKER_ID = as.factor(VHS1AR$SPEAKER_ID))
+View(VHS1AR_factored)
+```
+
+####Lets determine if we effectively factors the variables of interested.
+###We will determine the number of levels for each factor.
+```{r}
+nlevels(VHS1AR_factored$ID)
+nlevels(VHS1AR_factored$Health_Status)
+nlevels(VHS1AR_factored$SPEAKER_ID)
+```
+
+####Lets look at the distribution of our dependents variables by plotting histrograms
+```{r}
+require(psych)
+hist(VHS1AR_factored$Long_term_attractivenes)
+hist(VHS1AR_factored$Short_term_attractiveness)
+describe(VHS1AR_factored[c(4:5)])
+```
+
+
+####To factor health status.
+```{R}
+VHS1AR_factored$Health_Status = factor(VHS1AR_factored$Health_Status,
+                             levels = c(0,1),
+                             labels = c("Unhealthy", "Healthy"))
+table(VHS1AR_factored$Health_Status)
+```
+####The dependent variable is long-term attractiveness ratings
+
+####Lets enter the random effects of participant ID and speaker ID as well as the fixed effect 
+#####Lets add the fixed effects of health statue (healthy/unhealthy).
+```{r}
+require(lme4)
+LTAMODEL <- lmer(Long_term_attractiveness ~ Health_Status+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS1AR_factored)
+summary(LTAMODEL)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(LTAMODEL)
+```
+####Let's check our multiple regression assumption set for the model.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(LTAMODEL), resid(LTAMODEL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(LTAMODEL)) 
+qqline(resid(LTAMODEL), col = "red")
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(LTAMODEL)
+```
+
+
+
+####Let's generate the AIC for the model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(LTAMODEL), c("LTAMODEL"), LL = FALSE))
+```
+
+####To generate confidence interval.
+```{r}
+confint(LTAMODEL)
+```
+
+
+
+####Dependent variabe is short term attractiveness rating.
+
+
+
+#####Lets add the random effects of listener ID and speaker ID.
+#####Lets add the fixed effects of health statue (healthy/unhealthy).
+```{r}
+require(lme4)
+STAMODEL <- lmer(Short_term_attractiveness ~ Health_Status+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS1AR_factored)
+summary(STAMODEL)
+```
+
+
+####To generate confidence interval.
+```{r}
+confint(STAMODEL)
+```
+
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(STAMODEL)
+```
+
+
+
+
+####Let's check our multiple regression assumption set for the model.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(STAMODEL), resid(STAMODEL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(STAMODEL)) 
+qqline(resid(STAMODEL), col = "red")
+```
+
+###To generate the fixed effects table for the model .
+```{r}
+fixef(STAMODEL)
+```
+
+
+
+####Let's generate the AIC for the model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(STAMODEL), c("STAMODEL"), LL = FALSE))
+```
+
+
+
+
+
+
+
+

@@ -1,0 +1,328 @@
+---
+title: "Memory Facial Threat"
+author: "Graham Albert"
+date: "June 9, 2019"
+output: html_document
+---
+
+
+###To load required packarges
+```{r}
+require(curl) 
+```
+######loading data
+#####for more advanced rotation.
+```{r}
+require(dplyr)
+```
+####for data manipulation.
+```{r}
+require(yaml)
+require(stringi)
+```
+####for correlation plot depiction.
+```{r}
+require(gplots)
+require(ggplot2)
+require(gridExtra)
+require(moments)
+```
+
+###To load glmm.
+```{r}
+require(lme4)
+require(AICcmodavg)
+require(MuMIn)
+require(r2glmm)
+```
+####T
+```{r}
+require(RColorBrewer) # needed for some extra colours in one of the graphs
+require(lmerTest)# to get p-value estimations that are not part of the standard lme4 packages
+```
+
+
+####To load my data set for the mating motivation scale into the  R work space.
+```{r}
+f <- curl("https://raw.githubusercontent.com/GrahamAlbert/Voice_Health_Revised/master/Study_3_Male_Dominance_Ratings_Long.csv")
+VHS3DR<- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(VHS3DR)
+```
+
+####To determine variable names of the data set.
+```{r}
+names(VHS3DR)[1]<-"ID"
+names(VHS3DR)
+
+```
+
+####Lets obtain some summary statistics.
+```{r}
+summary(VHS3DR)
+dim(VHS3DR)
+View(VHS3DR)
+```
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####These are: ID, participant sex, and speaker ID.
+####The fixed effects in this analysis will be  health status.
+```{r}
+require(dplyr)
+VHS3DR_factored = mutate(VHS3DR,ID = as.factor(VHS3DR$ID), Manipulation_Type = as.factor(VHS3DR$Manipulation_Type), SPEAKER_ID = as.factor(VHS3DR$SPEAKER_ID))
+View(VHS3DR_factored)
+```
+
+####Lets determine if we effectively factors the variables of interested.
+###We will determine the number of levels for each factor.
+```{r}
+nlevels(VHS3DR_factored$ID)
+nlevels(VHS3DR_factored$Manipulation_Type)
+nlevels(VHS3DR_factored$SPEAKER_ID)
+```
+
+####Lets look at the distribution of our dependents variables by plotting histrograms
+```{r}
+require(psych)
+hist(VHS3DR_factored$Physical_Dominance_F0)
+hist(VHS3DR_factored$Physical_Dominance_VTL)
+hist(VHS3DR_factored$Social_Dominance_F0)
+hist(VHS3DR_factored$Social_Dominance_VTL)
+describe(VHS3DR_factored[c(4:7)])
+```
+
+
+####To recode recall and encoding so that the reference category changes.
+```{R}
+VHS3DR_factored$Manipulation_Type = factor(VHS3DR_factored$Manipulation_Type,
+                             levels = c(0,1),
+                             labels = c("Masculinized_F0_VTL", "Feminized_F0_VTL"))
+table(VHS3DR_factored$Manipulation_Type)
+```
+
+####Lets save this data.
+```{r}
+VHS3DR_Master= VHS3DR_factored
+summary(VHS3DR_Master)
+write.csv(VHS3DR_Master,"C:\\Users\\graha\\Documents\\Github\\Voice_Health_Revised\\VHS3DR_Master", row.names = FALSE)
+```
+
+
+
+
+
+
+
+####The dependent variable is listener's physical dominance ratings
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is F0 manipulation.
+
+```{r}
+require(lme4)
+PDFO <- lmer(Physical_Dominance_F0~Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS3DR_Master)
+summary(PDFO)
+```
+
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(PDFO)
+```
+####Let's check our multiple regression assumption set for model..
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(PDFO), resid(PDFO, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(PDFO)) 
+qqline(resid(PDFO), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(PDFO)
+confint(PDFO)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(PDFO), c("PDFO"), LL = FALSE))
+```
+
+
+
+
+
+####The dependent variable is listener's physical dominance ratings
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is apparent VTL manipulation.
+
+
+
+
+
+
+
+
+
+#Now lets add the categorical fixed of health status (healthy/unhealth).
+```{r}
+require(lme4)
+PDVTL <- lmer(Physical_Dominance_VTL~Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS3DR_Master)
+summary(PDVTL)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(PDVTL)
+```
+####Let's check our multiple regression assumption set for model 10.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(PDVTL), resid(PDVTL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(PDVTL)) 
+qqline(resid(PDVTL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(PDVTL)
+confint(PDVTL)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(PDVTL), c("PDVTL"), LL = FALSE))
+```
+
+
+
+
+####The dependent variable is listener's social dominance
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is apparent F0 manipulation.
+
+
+
+
+```{r}
+require(lme4)
+SDFO <- lmer(Social_Dominance_F0~Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS3DR_Master)
+summary(SDFO)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(SDFO)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(SDFO), resid(SDFO, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(SDFO)) 
+qqline(resid(SDFO), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(SDFO)
+confint(SDFO)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(SDFO), c("SDFO"), LL = FALSE))
+```
+
+
+
+
+
+
+####The dependent variable is listener's social dominance
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is apparent VTL manipulation.
+
+
+```{r}
+require(lme4)
+SDVTL <- lmer(Social_Dominance_VTL~Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML = FALSE,
+           data=VHS3DR_Master)
+summary(SDVTL)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(SDVTL)
+```
+####Let's check our multiple regression assumption set for model 10.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(SDVTL), resid(SDVTL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(SDVTL)) 
+qqline(resid(SDVTL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(SDVTL)
+confint(SDVTL)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(SDVTL), c("SDVTL"), LL = FALSE))
+```
+
+
+
+
+

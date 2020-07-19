@@ -1,0 +1,361 @@
+---
+title: "Study 2 Multiple Linear Regression Acoustic Parameters Health Measures"
+author: "Graham Albert"
+date: "2/25/2020"
+output: html_document
+---
+
+####To load required packarges
+```{r}
+require(curl) 
+```
+######missing data
+```{r}
+require(mice)
+```
+#####for more advanced rotation.
+```{r}
+require(dplyr)
+```
+####for data manipulation.
+```{r}
+require(yaml)
+require(stringi)
+require(dplyr)
+```
+####for  plot depiction.
+```{r}
+require(gplots)
+require(ggplot2)
+require(gridExtra)
+require(moments)
+```
+
+###obtaining variable parameters.
+```{r}
+require(psych)##for EFA, and descriiptivves
+require(BaylorEdPsych)####for missing value analysis
+```
+
+
+####Now we will read in the wide data set and conduct Pearson correlations.
+####To load my data set for the mating motivation scale into the  R work space.
+```{r}
+f <- curl("https://raw.githubusercontent.com/GrahamAlbert/Voice_Health_Revised/master/Study_2_Data_20200513.csv")
+VHS12<- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+View(VHS12)
+names(VHS12)
+```
+
+####To determine variable names of the data set.
+```{r}
+names(VHS12)[1]<-"ID"
+names(VHS12)
+```
+
+
+
+####To obtain the descriptive statistics includinag the skewness and kurtosis values of the variables.
+```{r}
+require(psych)
+norm = describe(VHS12[-c(1)])
+View(norm)
+```
+####Lets start with the Reby and McComb measure of VTL.
+```{r}
+VHS12_2 <- VHS12[-c(2,5,6,9:11,14,15)]
+View(VHS12_2)
+```
+
+####To screening for missing values.
+####To write a funtion to check for missng data.
+```{r}
+percentmiss=function(x){sum(is.na(x)/length(x))*100}
+```
+
+
+####To check for missing data by columns
+```{r}
+apply(VHS12_2,2,percentmiss)
+```
+####To check for missing data by row
+```{r}
+missing=apply(VHS12_2, 1,percentmiss)
+table(missing)
+```
+####To exclude participants who are missingn too much data.
+```{r}
+replacepeople=subset(VHS12_2,missing<=5)
+```
+
+
+
+####Make sure that the columns are not missing too much data.
+```{r}
+apply(VHS12_2, 2, percentmiss)
+```
+
+
+#####Base on an analysis of the columns it appears that the data is missing completely at random and we proceed with replacing the data using the package mice.
+```{r}
+require(mice)
+tempnomiss = mice(replacepeople)
+nomiss = complete (tempnomiss, 1)
+summary(nomiss)
+```
+###To lookk at data within missing replaced.
+```{r}
+View(nomiss)
+```
+####To screen for multivariate outliers.
+####To screen for multivariate outliers in the data set nomiss we will use mahalanobis distance statistic.
+```{r}
+mahal = mahalanobis(nomiss[-c(1)],
+                    colMeans(nomiss[-c(1)]),
+                    cov(nomiss[-c(1)]))
+cutoff = qchisq(0.999, ncol(nomiss[-c(1)])) #####generates cutoff score
+ncol(nomiss[-c(1)]) #####determines df
+table(mahal<cutoff)
+```
+
+###To exelucde the 8 outliers from the analysis.
+```{r}
+noout = subset(nomiss, mahal<cutoff)
+summary(noout)
+```
+
+
+
+
+
+###Multivariate assumption set up.
+```{r}
+library(tidyverse)
+set.seed(1234)
+random = rchisq(nrow(noout[-c(1)]),7)
+fake = lm(random ~.,data=noout[-c(1)])###Predict random errors which are randomly distribued
+standardized = rstudent(fake) ###Standarized residuals.
+fitted = scale(fake$fitted.values) ###To scale the values
+```
+####To test for linearity.
+```{r}
+qqnorm(standardized)
+abline(0,1)
+```
+####Based on  qq plot we have linearity.
+####To test for normality.
+```{r}
+hist(standardized)
+```
+####Our variables are linear so we procede to test homogenity of vairance.
+####Homogenity of Variance.
+```{r}
+plot(fitted, standardized)
+abline(0,0)
+abline(v=0)
+```
+####To compute a new variable of F0-CV
+```{r}
+require(dplyr)
+noout <- mutate(noout, FOCV=F0_SD/F0)
+View(noout)
+```
+
+###Lets run the model.
+####Model 9
+###Do F0 apparent VTL and absolute jitter predict listners health ratings of the speaker.
+```{r}
+options(scipen = 9999)
+M9 = lm(Listeners_Overall_Health_Rating~F0+apparent_VTL_Kalashikova +FOCV+Mean_HNR , data = noout)
+summary(M9)
+plot(M9)
+```
+####Lets compute the standardized regression coefficients.
+####F0
+```{R}
+pooledSDF0= sd(noout$F0)/sd(noout$Listeners_Overall_Health_Rating)
+pooledSDF0*-0.006313
+```
+###apparent VTL
+```{r}
+pooledVTL = sd(noout$apparent_VTL_Kalashikova)/sd(noout$Listeners_Overall_Health_Rating)
+pooledVTL* -0.042356
+```
+
+####F0-CV
+```{r}
+pooledSDFOCV= sd(noout$FOCV)/sd(noout$Listeners_Overall_Health_Rating)
+pooledSDFOCV*0.506664 
+```
+####HNR
+```{r}
+pooledSDMean_HNR= sd(noout$Mean_HNR)/sd(noout$Listeners_Overall_Health_Rating)
+pooledSDMean_HNR*-0.40587
+```
+
+###Lets run a  model in which speaKers current health and speakers disease resistance.
+###Does current health predict F0
+```{r}
+options(scipen = 9999)
+M10= lm(F0~Speakers_Health_Perception_Current_Health_mean, data = noout)
+summary(M10)
+plot(M10)
+```
+
+
+####F0 standardized coefficient
+```{r}
+pooledSDSpeakers_Health_Perception_Current_Health_mean= sd(noout$Speakers_Health_Perception_Current_Health_mean)/sd(noout$F0)
+pooledSDSpeakers_Health_Perception_Current_Health_mean*-0.845 
+```
+
+
+
+### Does disease resistance predict F0
+```{r}
+options(scipen = 9999)
+M11= lm(F0~Speakers_Health_Perception_Resistence_mean, data = noout)
+summary(M11)
+plot(M11)
+```
+####F0
+```{r}
+pooledSDSpeakers_Health_Perception_Resistence_mean= sd(noout$Speakers_Health_Perception_Resistence_mean)/sd(noout$F0)
+pooledSDSpeakers_Health_Perception_Resistence_mean*-3.608
+```
+
+
+
+
+
+
+
+
+
+
+
+
+###Lets run a  model in which speaKers current health and speakers disease resistance.
+###Does current health predict apparent VTL
+```{r}
+options(scipen = 9999)
+M12= lm(apparent_VTL_Kalashikova~Speakers_Health_Perception_Current_Health_mean, data = noout)
+summary(M12)
+plot(M12)
+```
+
+
+####apparent VTL
+```{r}
+pooledSDSpeakers_Health_Perception_Current_Health_mean= sd(noout$Speakers_Health_Perception_Current_Health_mean)/sd(noout$apparent_VTL_Kalashikova)
+pooledSDSpeakers_Health_Perception_Current_Health_mean*0.1896 
+```
+
+
+
+###Does disease resistance apparent VTL.
+```{r}
+options(scipen = 9999)
+M13= lm(apparent_VTL_Kalashikova~Speakers_Health_Perception_Resistence_mean, data = noout)
+summary(M13)
+plot(M13)
+```
+####apparent VTL
+```{r}
+pooledSDSpeakers_Health_Perception_Resistence_mean= sd(noout$Speakers_Health_Perception_Resistence_mean)/sd(noout$apparent_VTL_Kalashikova)
+pooledSDSpeakers_Health_Perception_Resistence_mean*0.1352  
+```
+
+
+
+
+###Lets run a  model in which speaKers current health and speakers disease resistance.
+###Does current health predict FOCV?
+```{r}
+options(scipen = 9999)
+M14 = lm(FOCV~Speakers_Health_Perception_Current_Health_mean, data = noout)
+summary(M14)
+plot(M14)
+```
+####F0-CV
+```{r}
+pooledSDSpeakers_Health_Perception_Current_Health_mean= sd(noout$Speakers_Health_Perception_Current_Health_mean)/sd(noout$FOCV)
+pooledSDSpeakers_Health_Perception_Current_Health_mean*-0.02038   
+```
+
+###Does disease resistance predict FOCV?
+```{r}
+options(scipen = 9999)
+M15= lm(FOCV~Speakers_Health_Perception_Resistence_mean, data = noout)
+summary(M15)
+plot(M15)
+```
+####F0-CV
+```{r}
+pooledSDSpeakers_Health_Perception_Resistence_mean= sd(noout$Speakers_Health_Perception_Resistence_mean)/sd(noout$FOCV)
+pooledSDSpeakers_Health_Perception_Resistence_mean*-0.002484 
+```
+
+
+
+
+
+
+
+
+
+
+###Lets run a  model in which speaKers current health and speakers disease resistance.
+###Does current health predict HNR
+```{r}
+options(scipen = 9999)
+M16= lm(Mean_HNR~Speakers_Health_Perception_Current_Health_mean, data = noout)
+summary(M16)
+plot(M16)
+```
+
+
+####HNR
+```{r}
+pooledSDSpeakers_Health_Perception_Current_Health_mean = sd(noout$Speakers_Health_Perception_Current_Health_mean)/sd(noout$Mean_HNR)
+pooledSDSpeakers_Health_Perception_Current_Health_mean*-0.006597  
+```
+
+
+
+###Does disease resistance predict HNR.
+```{r}
+options(scipen = 9999)
+M17 = lm(Mean_HNR~Speakers_Health_Perception_Resistence_mean, data = noout)
+summary(M17)
+plot(M17)
+```
+####HNR
+```{r}
+pooledSDSpeakers_Health_Perception_Resistence_mean= sd(noout$Speakers_Health_Perception_Resistence_mean)/sd(noout$Mean_HNR)
+pooledSDSpeakers_Health_Perception_Resistence_mean*0.02152 
+```
+
+
+
+##Does speakers current health and disease resistances ratings predict listeners' current health.
+```{r}
+options(scipen = 9999)
+M18 = lm(Listeners_Overall_Health_Rating~Speakers_Health_Perception_Current_Health_mean+Speakers_Health_Perception_Resistence_mean, data = noout)
+summary(M18)
+plot(M18)
+```
+
+
+####Listeners Overall Health Rating
+```{r}
+pooledSDListeners_Overall_Health_Rating = sd(noout$Speakers_Health_Perception_Current_Health_mean)/sd(noout$Listeners_Overall_Health_Rating)
+pooledSDListeners_Overall_Health_Rating* 0.06465
+```
+
+
+####Listeners Overall Health Rating
+```{r}
+pooledSDSpeakers_Health_Perception_Resistence_mean  = sd(noout$Speakers_Health_Perception_Resistence_mean )/sd(noout$Listeners_Overall_Health_Rating)
+pooledSDSpeakers_Health_Perception_Resistence_mean* -0.06726
+```

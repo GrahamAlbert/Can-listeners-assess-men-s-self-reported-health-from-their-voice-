@@ -1,0 +1,311 @@
+---
+title: "F0 and VTL and attractivensss ratings"
+author: "Graham Albert"
+date: "June 9, 2019"
+output: html_document
+---
+
+
+###To load required packarges
+```{r}
+require(curl) 
+```
+######loading data
+#####for more advanced rotation.
+```{r}
+require(dplyr)
+```
+####for data manipulation.
+```{r}
+require(yaml)
+require(stringi)
+```
+####for correlation plot depiction.
+```{r}
+require(gplots)
+require(ggplot2)
+require(gridExtra)
+require(moments)
+```
+
+###To load packages for mixed effects models.
+```{r}
+require(lme4)
+require(AICcmodavg)
+require(MuMIn)
+require(r2glmm)
+```
+####Packages for mixed effects models.
+```{r}
+require(RColorBrewer) # needed for some extra colours in one of the graphs
+require(lmerTest)# to get p-value estimations that are not part of the standard lme4 packages
+```
+
+
+####To load my data set for the mating motivation scale into the  R work space.
+```{r}
+f <- curl("https://raw.githubusercontent.com/GrahamAlbert/Voice_Health_Revised/master/Study_3_Female_Attractiveness_Ratings_Long.csv")
+VHS3AR<- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(VHS3AR)
+```
+
+####To determine variable names of the data set.
+```{r}
+names(VHS3AR)[1]<-"ID"
+names(VHS3AR)
+
+```
+
+####Lets obtain some summary statistics.
+```{r}
+summary(VHS3AR)
+dim(VHS3AR)
+View(VHS3AR)
+```
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####These are: ID, participant sex, and speaker ID.
+####The fixed effects in this analysis will be  health status.
+```{r}
+require(dplyr)
+VHS3AR_factored = mutate(VHS3AR,ID = as.factor(VHS3AR$ID),ParticipantSex  = as.factor(VHS3AR$ParticipantSex), Manipulation_Type = as.factor(VHS3AR$Manipulation_Type), SPEAKER_ID = as.factor(VHS3AR$SPEAKER_ID))
+View(VHS3AR_factored)
+```
+
+####Lets determine if we effectively factors the variables of interested.
+###We will determine the number of levels for each factor.
+```{r}
+nlevels(VHS3AR_factored$ID)
+nlevels(VHS3AR_factored$ParticipantSex)
+nlevels(VHS3AR_factored$Manipulation_Type)
+nlevels(VHS3AR_factored$SPEAKER_ID)
+```
+
+####Lets look at the distribution of our dependents variables by plotting histrograms
+```{r}
+require(psych)
+hist(VHS3AR_factored$Long_Term_Attractive_F0)
+hist(VHS3AR_factored$Long_Term_Attractive_VTL)
+hist(VHS3AR_factored$Short_Term_Attractive_F0)
+hist(VHS3AR_factored$Short_Term_Attractive_VTL)
+describe(VHS3AR_factored[c(5:8)])
+```
+
+
+####To recode recall and encoding so that the reference category changes.
+```{R}
+VHS3AR_factored$Manipulation_Type = factor(VHS3AR_factored$Manipulation_Type,
+                             levels = c(0,1),
+                             labels = c("Masculinized", "Feminized"))
+table(VHS3AR_factored$Manipulation_Type)
+VHS3AR_factored$Manipulation_Type <- relevel(VHS3AR_factored$Manipulation_Type, ref = "Feminized")
+```
+
+####Lets save this data.
+```{r}
+VHS3AR_Master= VHS3AR_factored
+summary(VHS3AR_Master)
+write.csv(VHS3AR_Master,"C:\\Users\\graha\\Documents\\Github\\Voice_Health_Revised\\VHS3AR_Master", row.names = FALSE)
+```
+####The dependent variable is long-term attractiveness.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is FO manipulation
+
+```{r}
+require(lme4)
+LTAFO <- lmer(Long_Term_Attractive_F0~Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS3AR_Master)
+summary(LTAFO)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(LTAFO)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(LTAFO), resid(LTAFO, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(LTAFO)) 
+qqline(resid(LTAFO), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(LTAFO)
+confint(LTAFO)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(LTAFO), c("LTAFO"), LL = FALSE))
+```
+
+
+
+
+
+
+####The dependent variable is long-term attractiveness.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is VTL manipulation
+
+
+```{r}
+require(lme4)
+LTAVTL <- lmer(Long_Term_Attractive_VTL~Manipulation_Type+(1|ID)+(1|SPEAKER_ID), REML=FALSE,
+           data=VHS3AR_Master)
+summary(LTAVTL)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(LTAVTL)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(LTAVTL), resid(LTAVTL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(LTAVTL)) 
+qqline(resid(LTAVTL), col = "red")
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(LTAVTL)
+confint(LTAVTL)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(LTAVTL), c("LTAVTL"), LL = FALSE))
+```
+
+
+
+####The dependent variable is short-term attractiveness.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is FO manipulation
+
+```{r}
+require(lme4)
+STAFO <- lmer(Short_Term_Attractive_F0~Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS3AR_Master)
+summary(STAFO)
+```
+
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(STAFO)
+```
+####Let's check our multiple regression assumption set for models.
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(STAFO), resid(STAFO, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(STAFO)) 
+qqline(resid(STAFO), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(STAFO)
+confint(STAFO)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(STAFO), c("STAFO"), LL = FALSE))
+```
+
+
+
+
+
+
+
+
+
+
+
+###Our dependent variable will be short term attractiveness ratings assigned to the voices with the VTL manipulation
+
+#Now lets add the categorical fixed of health status (healthy/unhealth).
+```{r}
+require(lme4)
+STAVTL <- lmer(Short_Term_Attractive_VTL~Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS3AR_Master)
+summary(STAVTL)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(STAVTL)
+```
+####Let's check our multiple regression assumption set for model 10.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(STAVTL), resid(STAVTL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(STAVTL)) 
+qqline(resid(STAVTL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(STAVTL)
+confint(STAVTL)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(STAVTL), c("STAVTL"), LL = FALSE))
+```
+
+
+
+
+

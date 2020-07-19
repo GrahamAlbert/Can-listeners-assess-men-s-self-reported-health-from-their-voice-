@@ -1,0 +1,558 @@
+---
+title: "F0 and VTL manipulation health ratings"
+author: "Graham Albert"
+date: "June 9, 2019"
+output: html_document
+---
+
+
+###To load required packarges
+```{r}
+require(curl) 
+```
+######loading data
+#####for more advanced rotation.
+```{r}
+require(dplyr)
+```
+####for data manipulation.
+```{r}
+require(yaml)
+require(stringi)
+```
+####for correlation plot depiction.
+```{r}
+require(gplots)
+require(ggplot2)
+require(gridExtra)
+require(moments)
+```
+
+###To load mixed effects models packages
+```{r}
+require(lme4)
+require(AICcmodavg)
+require(MuMIn)
+require(r2glmm)
+```
+####To load more mixed effects models.
+```{r}
+require(RColorBrewer) # needed for some extra colours in one of the graphs
+require(lmerTest)# to get p-value estimations that are not part of the standard lme4 packages
+```
+
+
+####To load my data set for the mating motivation scale into the  R work space.
+```{r}
+f <- curl("https://raw.githubusercontent.com/GrahamAlbert/Voice_Health_Revised/master/Study_3_Health_Based_Ratings_long_Corrected.csv")
+VHS3HR<- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(VHS3HR)
+```
+
+####To determine variable names of the data set.
+```{r}
+names(VHS3HR)[1]<-"ID"
+names(VHS3HR)
+```
+
+####Lets obtain some summary statistics.
+```{r}
+summary(VHS3HR)
+dim(VHS3HR)
+View(VHS3HR)
+```
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####These are: ID, participant sex, and speaker ID.
+####The fixed effects in this analysis will be  health status.
+```{r}
+require(dplyr)
+VHS3HR_factored = mutate(VHS3HR,ID = as.factor(VHS3HR$ID),ParticipantSex  = as.factor(VHS3HR$ParticipantSex), Manipulation_Type = as.factor(VHS3HR$Manipulation_Type), SPEAKER_ID = as.factor(VHS3HR$SPEAKER_ID))
+View(VHS3HR_factored)
+```
+
+####Lets determine if we effectively factors the variables of interested.
+###We will determine the number of levels for each factor.
+```{r}
+nlevels(VHS3HR_factored$ID)
+nlevels(VHS3HR_factored$ParticipantSex)
+nlevels(VHS3HR_factored$Manipulation_Type)
+nlevels(VHS3HR_factored$SPEAKER_ID)
+```
+
+####Lets look at the distribution of our dependents variables by plotting histrograms
+```{r}
+require(psych)
+hist(VHS3HR_factored$Health_Rating_F0)
+hist(VHS3HR_factored$Health_Rating_VTL)
+hist(VHS3HR_factored$Disease_Likelihood_Rating_F0)
+hist(VHS3HR_factored$Disease_Likelihood_Rating_VTL)
+hist(VHS3HR_factored$Illness_Frequency_F0)
+hist(VHS3HR_factored$Illness_Frequency_VTL)
+hist(VHS3HR_factored$Symptom_Severity_F0)
+hist(VHS3HR_factored$Symptom_Severity_VTL)
+describe(VHS3HR_factored[c(5:12)])
+```
+
+
+####To recode recall and encoding so that the reference category changes.
+```{R}
+VHS3HR_factored$ParticipantSex = factor(VHS3HR_factored$ParticipantSex,
+                             levels = c(0,1),
+                             labels = c("Male", "Female"))
+table(VHS3HR_factored$ParticipantSex)
+VHS3HR_factored$Manipulation_Type = factor(VHS3HR_factored$Manipulation_Type,
+                             levels = c(0,1),
+                             labels = c("Masculinized_F0_VTL", "Feminized_F0_VTL"))
+table(VHS3HR_factored$Manipulation_Type)
+```
+
+####Lets save this data.
+```{r}
+VHS3HR_Master= VHS3HR_factored
+summary(VHS3HR_Master)
+write.csv(VHS3HR_Master,"C:\\Users\\graha\\Documents\\Github\\Voice_Health_Revised\\VHS3HR_Master", row.names = FALSE)
+```
+
+
+
+
+
+####The dependent variable is listener's health ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is F0 manipulation.
+
+
+```{r}
+require(lme4)
+HEALTHRATINGF0 <- lmer(Health_Rating_F0 ~ Manipulation_Type+(1|ID)+(1|SPEAKER_ID), REML=FALSE,
+           data=VHS3HR_Master)
+summary(HEALTHRATINGF0)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(HEALTHRATINGF0)
+```
+####Let's check our multiple regression assumption set for the model.
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(HEALTHRATINGF0), resid(HEALTHRATINGF0, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(HEALTHRATINGF0)) 
+qqline(resid(HEALTHRATINGF0), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(HEALTHRATINGF0)
+confint(HEALTHRATINGF0)
+```
+
+
+
+####Let's generate the AIC for the model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(HEALTHRATINGF0), c("HEALTHRATINGF0"), LL = FALSE))
+```
+
+
+####The dependent variable is listener's health ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is apparent VTL manipulation
+.
+```{r}
+require(lme4)
+HEALTHRATINGVTL <- lmer(Health_Rating_VTL ~ Manipulation_Type+(1|ID)+(1|SPEAKER_ID),
+           data=VHS3HR_Master,REML=FALSE)
+summary(HEALTHRATINGVTL)
+```
+
+
+###Lets get the confidence intervals for the model.
+```{r}
+confint(HEALTHRATINGVTL)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(HEALTHRATINGVTL)
+```
+####Let's check our multiple regression assumption set for the model.
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(HEALTHRATINGVTL), resid(HEALTHRATINGVTL, type = "pearson"))
+abline(0,0, col="red")
+```
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(HEALTHRATINGVTL)) 
+qqline(resid(HEALTHRATINGVTL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(HEALTHRATINGVTL)
+confint(HEALTHRATINGVTL)
+```
+####Let's generate the AIC for the model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(HEALTHRATINGVTL), c("HEALTHRATINGVTL"), LL = FALSE))
+```
+
+
+
+
+####The dependent variable is listener's  diseaselikelihood ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is F0 manipulation.
+
+
+
+
+###Our dependent variable will be diseaselikelihood ratings assigned to the voices with the apparent F0 manipulation
+
+```{r}
+require(lme4)
+options(scipen=999)
+DISEASELIKEFO <- lmer(Disease_Likelihood_Rating_F0 ~ Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS3HR_Master)
+summary(DISEASELIKEFO)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(DISEASELIKEFO)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(DISEASELIKEFO), resid(DISEASELIKEFO, type = "pearson"))
+abline(0,0, col="red")
+```
+
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(DISEASELIKEFO)) 
+qqline(resid(DISEASELIKEFO), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(DISEASELIKEFO)
+confint(DISEASELIKEFO)
+```
+
+
+
+####Let's generate the AIC for the models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(DISEASELIKEFO), c("DISEASELIKEFO"), LL = FALSE))
+```
+
+
+
+####The dependent variable is listener's  diseaselikelihood ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is apparent VTL manipulation.
+
+
+
+
+#Now lets control of individuals speaker in our analysis to ensure that other acoustic characteristics do not affect our 
+#manipulations.
+```{r}
+require(lme4)
+DISEASELIKEVTL<- lmer(Disease_Likelihood_Rating_VTL ~ Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS3HR_Master)
+summary(DISEASELIKEVTL)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(DISEASELIKEVTL)
+```
+####Let's check our multiple regression assumption set for the model.
+####First, we can check for homoscedasticity. 
+```{r}
+plot(fitted(DISEASELIKEVTL), resid(DISEASELIKEVTL, type = "pearson"))
+abline(0,0, col="red")
+```
+
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(DISEASELIKEVTL)) 
+qqline(resid(DISEASELIKEVTL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(DISEASELIKEVTL)
+confint(DISEASELIKEVTL)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(DISEASELIKEVTL), c("DISEASELIKEVTL"), LL = FALSE))
+```
+
+
+####The dependent variable is listener's illness frequency ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is FO manipulation.
+
+
+
+#Now lets control of individuals speaker in our analysis to ensure that other acoustic characteristics do not affect our 
+#manipulations.
+```{r}
+require(lme4)
+ILLFREQFO<- lmer(Illness_Frequency_F0 ~ Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS3HR_Master)
+summary(ILLFREQFO)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(ILLFREQFO)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity . 
+```{r}
+plot(fitted(ILLFREQFO), resid(ILLFREQFO, type = "pearson"))
+abline(0,0, col="red")
+```
+
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(ILLFREQFO)) 
+qqline(resid(ILLFREQFO), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(ILLFREQFO)
+confint(ILLFREQFO)
+```
+
+
+
+####Let's generate the AIC for the 8 models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(ILLFREQFO), c("ILLFREQFO"), LL = FALSE))
+```
+
+
+
+
+
+
+
+
+
+####The dependent variable is listener's illness frequency ratings.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is apparent VTL manipulation.
+
+
+```{r}
+require(lme4)
+ILLFREQVTL <- lmer(Illness_Frequency_VTL ~ Manipulation_Type+(1|ID)+(1|SPEAKER_ID),REML=FALSE,
+           data=VHS3HR_Master)
+summary(ILLFREQVTL)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(ILLFREQVTL)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity. 
+```{r}
+plot(fitted(ILLFREQVTL), resid(ILLFREQVTL, type = "pearson"))
+abline(0,0, col="red")
+```
+
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(ILLFREQVTL)) 
+qqline(resid(ILLFREQVTL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(ILLFREQVTL)
+confint(ILLFREQVTL)
+```
+
+
+
+####Let's generate the AIC for the  model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(ILLFREQVTL), c("ILLFREQVTL"), LL = FALSE))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####The dependent variable is listener's symptom severity.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is F0 manipulation.
+
+
+
+####To conduct a mixed effects model in which symptom severity for voices with the F0 manipulation
+
+```{r}
+require(lme4)
+SYMSEVFO <- lmer(Symptom_Severity_F0 ~ Manipulation_Type+(1|ID)+(1|SPEAKER_ID), REML = FALSE,
+           data=VHS3HR_Master)
+summary(SYMSEVFO)
+```
+
+###To compute adjusted R squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(SYMSEVFO)
+```
+####Let's check our multiple regression assumption set for model 10.
+####First, we can check for homoscedasticity by comparing residuals to the fitted items. 
+```{r}
+plot(fitted(SYMSEVFO), resid(SYMSEVFO, type = "pearson"))
+abline(0,0, col="red")
+```
+
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(SYMSEVFO)) 
+qqline(resid(SYMSEVFO), col = "red")
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(SYMSEVFO)
+confint(SYMSEVFO)
+```
+
+
+
+####Let's generate the AIC for the model.
+```{r}
+require(AICcmodavg)
+print(aictab(list(SYMSEVFO), c("SYMSEVFO"), LL = FALSE))
+```
+
+
+
+
+
+####The dependent variable is listener's symptom severity.
+
+
+####Lets factor the variables which we are going to use as our random and fixed effects and append them to the data set.
+####The random effects for the mixed effects listeners' ID, and speaker ID.
+####The fixed effects in this analysis is apparent VTL manipulation.
+
+
+
+####To conduct a mixed effects model in which symptom severity for voices with the apparent VTL manipulation.
+```{r}
+require(lme4)
+SYMSEVVTL <- lmer(Symptom_Severity_VTL ~ Manipulation_Type+(1|ID)+(1|SPEAKER_ID),
+           data=VHS3HR_Master)
+summary(SYMSEVVTL)
+```
+
+###To compute adjusted R-squared.
+```{r}
+require(MuMIn)
+r.squaredGLMM(SYMSEVVTL)
+```
+####Let's check our multiple regression assumption set for model.
+####First, we can check for homoscedasticity. 
+```{r}
+plot(fitted(SYMSEVVTL), resid(SYMSEVVTL, type = "pearson"))
+abline(0,0, col="red")
+```
+
+####We can also use a QQ-plot to check for normality of residuals. 
+```{r}
+qqnorm(resid(SYMSEVVTL)) 
+qqline(resid(SYMSEVVTL), col = "red")
+
+```
+
+###To generate the fixed effects table for the models .
+```{r}
+fixef(SYMSEVVTL)
+confint(SYMSEVVTL)
+```
+
+
+
+####Let's generate the AIC for the models.
+```{r}
+require(AICcmodavg)
+print(aictab(list(SYMSEVVTL), c("SYMSEVVTL"), LL = FALSE))
+```
+
+
